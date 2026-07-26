@@ -51,7 +51,7 @@ EDIT RULES:
 - Apply ONLY the change described in the edit request. Make no other changes.
 - Preserve every other field, page, section, and block exactly as given — same order, same wording, same slugs, and the same theme values you were not asked to change.
 - Return the COMPLETE modified manifest (the whole object), never a diff or just the changed part.
-- Keep every existing image/gallery/hero "src" exactly as it is (usually ""). Never invent image URLs.
+- Every image/gallery/hero "src" is either "" or a short placeholder token like "__img3__" that stands in for the owner's photo. Copy each "src" value byte-for-byte — never alter, translate, merge, or invent these tokens. A photo moves only when you move the block that holds it; a photo is removed only by removing its block. Set "src":"" on any NEW image you add.
 - If the request is unclear or cannot be applied to this manifest, return the manifest unchanged.`;
 
 const WOMBAT_EXAMPLE = {
