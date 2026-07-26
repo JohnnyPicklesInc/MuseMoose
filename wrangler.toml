@@ -18,8 +18,8 @@ binding = "AI"
 #   npx wrangler kv namespace create RL --preview
 [[kv_namespaces]]
 binding = "RL"
-id = "REPLACE_WITH_KV_ID"
-preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+id = "7415fee20c6c4c04b075a3f2dd275dbf"
+preview_id = "b9edda15fd694ddb9874f86346b9444d"
 
 [vars]
 # The open model. Qwen2.5-Coder is strong at structured/nested JSON, which is
