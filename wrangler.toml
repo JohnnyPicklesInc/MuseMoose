@@ -34,6 +34,10 @@ RATE_PER_IP_HOUR = "20"
 RATE_GLOBAL_DAY = "500"
 MAX_PROMPT_CHARS = "2000"
 MAX_OUTPUT_TOKENS = "2048"
+# Edit mode (request carries the current manifest + an instruction): a size cap
+# on the incoming manifest, and a bigger output budget for the full rewrite.
+MAX_MANIFEST_CHARS = "20000"
+MAX_OUTPUT_TOKENS_EDIT = "4096"
 
 # Optional: turn on human verification by setting the secret (leave unset in dev):
 #   npx wrangler secret put TURNSTILE_SECRET

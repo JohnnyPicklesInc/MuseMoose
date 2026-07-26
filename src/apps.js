@@ -3,10 +3,9 @@
 // gateway is generic; only these entries change per app. Add invoiceiguana /
 // notenewt here the same way.
 
-const WOMBAT_SYSTEM = `You generate a website for "Website Wombat", a browser-only micro-site builder.
-Output ONLY a single JSON object — a "v2 manifest". No prose, no markdown fences, no comments.
-
-MANIFEST SHAPE:
+// The manifest shape + hard format rules — shared by both the "generate" and
+// "edit" system prompts so the two never drift.
+const WOMBAT_SHAPE = `MANIFEST SHAPE:
 {
   "version": 2,
   "meta": { "name": string, "tagline"?: string, "telephone"?: string, "email"?: string, "address"?: string },
@@ -28,12 +27,32 @@ BLOCK is one of:
   { "type": "columns", "style": "card", "columns": [ { "blocks": [ BLOCK ] } ] }
   { "type": "divider" }
 
-RULES:
-- Always set image/gallery/hero "src" to "" (empty). The user uploads real photos later. Never invent image URLs.
+FORMAT RULES (always):
+- Output ONLY a single JSON object — a "v2 manifest". No prose, no markdown fences, no comments.
+- Always set image/gallery/hero "src" to "" (empty). The user uploads real photos later. Never invent image URLs.`;
+
+const WOMBAT_SYSTEM = `You generate a website for "Website Wombat", a browser-only micro-site builder.
+
+${WOMBAT_SHAPE}
+
+GENERATION RULES:
 - Use ONE page unless the request clearly needs several; give it "name":"Home","slug":"".
 - Start with a "hero" (headline + eyebrow + call/email buttons), then About, then service/section cards (use "columns" style "card"), then a contact section with tel/mailto buttons.
 - Pick an accent hex that fits the business; use real contact details from the request (tel:, mailto:). If a detail is missing, omit that field — do not invent phone numbers or emails.
 - Write concise, professional, specific copy. No placeholder lorem ipsum.`;
+
+// Edit mode: given a CURRENT MANIFEST + an EDIT REQUEST, return the whole
+// manifest with only the requested change applied.
+const WOMBAT_EDIT_SYSTEM = `You EDIT an existing "Website Wombat" site. You are given the CURRENT MANIFEST (a v2 manifest JSON object) and an EDIT REQUEST (a plain-language instruction from the site owner).
+
+${WOMBAT_SHAPE}
+
+EDIT RULES:
+- Apply ONLY the change described in the edit request. Make no other changes.
+- Preserve every other field, page, section, and block exactly as given — same order, same wording, same slugs, and the same theme values you were not asked to change.
+- Return the COMPLETE modified manifest (the whole object), never a diff or just the changed part.
+- Keep every existing image/gallery/hero "src" exactly as it is (usually ""). Never invent image URLs.
+- If the request is unclear or cannot be applied to this manifest, return the manifest unchanged.`;
 
 const WOMBAT_EXAMPLE = {
   version: 2,
@@ -69,6 +88,9 @@ const WOMBAT_EXAMPLE = {
 export const APPS = {
   "website-wombat": {
     system: WOMBAT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(WOMBAT_EXAMPLE),
+    // Used when the request includes a `manifest` (edit an existing site rather
+    // than generate a new one). No example needed — the current manifest is it.
+    editSystem: WOMBAT_EDIT_SYSTEM,
     // Light server-side sanity check. The Website Wombat client re-normalizes
     // fully (normalizePages, dropping unknown blocks), so this only needs to
     // confirm we got a plausible manifest object back.

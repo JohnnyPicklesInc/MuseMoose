@@ -34,6 +34,19 @@ export default {
     if (!prompt) return json({ error: "empty prompt" }, 400, cors);
     if (prompt.length > maxChars) return json({ error: "prompt too long (max " + maxChars + " chars)" }, 400, cors);
 
+    // ---- edit vs generate: a `manifest` in the body means "change this existing
+    // site" (prompt = the edit instruction), otherwise "generate a new one". ----
+    const editing = !!(body && body.manifest && typeof body.manifest === "object");
+    let manifestStr = "";
+    if (editing) {
+      if (!app.editSystem) return json({ error: "this app does not support editing" }, 400, cors);
+      manifestStr = JSON.stringify(body.manifest);
+      // The MAX_PROMPT_CHARS check above only covers `prompt`, so guard the
+      // manifest separately (a large site would otherwise sail into the model).
+      const maxManifest = int(env.MAX_MANIFEST_CHARS, 20000);
+      if (manifestStr.length > maxManifest) return json({ error: "site is too large to edit with AI (max " + maxManifest + " chars) — try editing by hand" }, 400, cors);
+    }
+
     // ---- human check (only enforced if a secret is configured) ----
     if (env.TURNSTILE_SECRET) {
       const ip = request.headers.get("CF-Connecting-IP") || "";
@@ -50,8 +63,10 @@ export default {
     const global = await bump(env.RL, "global:" + day, 86400);
     if (global > int(env.RATE_GLOBAL_DAY, 500)) return json({ error: "daily limit reached — back tomorrow" }, 429, cors);
 
-    // ---- cache: identical (app+prompt) served for free ----
-    const key = "cache:" + body.app + ":" + (await sha256(body.app + "\n" + prompt));
+    // ---- cache: identical requests served for free. Edit results are keyed by
+    // (manifest + instruction) so they never collide with generation results. ----
+    const cacheSeed = editing ? ("edit\n" + manifestStr + "\n" + prompt) : prompt;
+    const key = "cache:" + body.app + ":" + (await sha256(body.app + "\n" + cacheSeed));
     const cached = await env.RL.get(key);
     if (cached) {
       try { return json({ manifest: JSON.parse(cached), cached: true }, 200, cors); } catch (e) { /* fall through */ }
@@ -60,12 +75,20 @@ export default {
     // ---- inference ----
     let manifest;
     try {
+      const messages = editing
+        ? [
+            { role: "system", content: app.editSystem },
+            { role: "user", content: "CURRENT MANIFEST:\n" + manifestStr + "\n\nEDIT REQUEST:\n" + prompt }
+          ]
+        : [
+            { role: "system", content: app.system },
+            { role: "user", content: prompt }
+          ];
+      // A full-manifest rewrite needs more room than a fresh generation.
+      const maxTokens = editing ? int(env.MAX_OUTPUT_TOKENS_EDIT, 4096) : int(env.MAX_OUTPUT_TOKENS, 2048);
       const out = await env.AI.run(env.MODEL || "@cf/qwen/qwen2.5-coder-32b-instruct", {
-        messages: [
-          { role: "system", content: app.system },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: int(env.MAX_OUTPUT_TOKENS, 2048)
+        messages: messages,
+        max_tokens: maxTokens
       });
       manifest = extractJson(out && (out.response != null ? out.response : out));
     } catch (e) {
