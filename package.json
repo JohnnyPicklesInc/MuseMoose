@@ -1,0 +1,15 @@
+{
+  "name": "musemoose",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MuseMoose — a shared AI generation gateway (Cloudflare Worker). Turns a natural-language request into an app's structured object (e.g. a Website Wombat manifest), behind rate-limiting, a global daily cap, caching, and CORS. Open-weight model via Workers AI; no account API token.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --remote",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

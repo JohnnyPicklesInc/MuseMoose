@@ -1,0 +1,40 @@
+name = "musemoose"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# MuseMoose is a shared AI generation gateway. It has ONLY the two bindings below:
+#   • AI  — Workers AI (the open model)
+#   • RL  — one KV namespace for rate-limit counters + response cache
+# It has NO Cloudflare API token and NO access to any other app's D1/KV/R2. A
+# Worker can only touch the bindings you declare here, so this service is walled
+# off from AgentAlpaca / NoteNewt / etc. by construction. Do NOT add an account
+# API token as a secret — that's the only thing that would grant account-wide reach.
+
+[ai]
+binding = "AI"
+
+# Create the namespace first, then paste the ids:
+#   npx wrangler kv namespace create RL
+#   npx wrangler kv namespace create RL --preview
+[[kv_namespaces]]
+binding = "RL"
+id = "REPLACE_WITH_KV_ID"
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+
+[vars]
+# The open model. Qwen2.5-Coder is strong at structured/nested JSON, which is
+# what this task needs. Alternatives: "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+# (best all-round) or "@cf/meta/llama-3.1-8b-instruct" (cheapest). Confirm the
+# exact id against Cloudflare's Workers AI models catalog.
+MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
+# Comma-separated origins allowed to call the API (your apps). Add your prod domains.
+ALLOWED_ORIGINS = "http://localhost:8787,http://127.0.0.1:8787"
+# Abuse limits.
+RATE_PER_IP_HOUR = "20"
+RATE_GLOBAL_DAY = "500"
+MAX_PROMPT_CHARS = "2000"
+MAX_OUTPUT_TOKENS = "2048"
+
+# Optional: turn on human verification by setting the secret (leave unset in dev):
+#   npx wrangler secret put TURNSTILE_SECRET
+# When TURNSTILE_SECRET is set, requests must include a valid `turnstileToken`.
