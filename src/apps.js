@@ -85,6 +85,74 @@ const WOMBAT_EXAMPLE = {
   }]
 };
 
+// ---------------------------------------------------------------------------
+// Invoice Iguana — a free browser invoice generator. The AI targets the app's
+// "raw" invoice shape (lowercased keys, prices in MAJOR currency units); the
+// client feeds it through parseInvoice, which computes subtotal/total. Invoice
+// and quote share this shape; receipt is a different model (add separately).
+const INVOICE_SHAPE = `RAW INVOICE SHAPE:
+{
+  "seller": string,                 // the business issuing the invoice (required)
+  "selleraddress"?: string,
+  "sellercontact"?: string,         // email and/or phone
+  "buyer": string,                  // who is being billed (required)
+  "buyeraddress"?: string,
+  "buyercontact"?: string,
+  "invoicenumber"?: string,
+  "issuedate"?: string,             // "YYYY-MM-DD"
+  "duedate"?: string,               // "YYYY-MM-DD"
+  "currency"?: string,              // 3-letter ISO code, default "USD"
+  "items": [                        // at least one line item (required)
+    { "name": string, "qty": number, "price": number, "unit"?: string,
+      "discount"?: number, "discounttype"?: "percent"|"amount" }
+  ],
+  "discount"?: number,              // invoice-wide discount, a FIXED amount in the currency
+  "taxrate"?: number,               // tax as a PERCENTAGE, e.g. 8 for 8% — the app computes the amount
+  "tax"?: number,                   // tax as a FIXED amount, ONLY when it isn't a percentage
+  "taxlabel"?: string,              // label only, e.g. "Sales tax" — has no effect on the math
+  "notes"?: string,
+  "paymentinstructions"?: string,
+  "paymenturl"?: string             // https URL only
+}
+
+FORMAT RULES (always):
+- Output ONLY a single JSON object (a raw invoice). No prose, no markdown fences, no comments.
+- "price", "discount", and "tax" are plain numbers in MAJOR currency units (150 = $150.00, 8.5 = $8.50).
+- Do NOT include "subtotal" or "total", and do NOT do arithmetic — the app computes every dollar figure.
+- TAX: if it's a percentage, set "taxrate" to the number (8% → "taxrate": 8) and DO NOT set "tax" — the
+  app computes the amount from the subtotal. Use "tax" only for a flat amount that is not a percentage.
+- Never invent a real business's contact details, address, or payment URL. Omit anything you don't know.`;
+
+const INVOICE_SYSTEM = `You create an invoice for "Invoice Iguana", a free browser invoice generator.
+
+${INVOICE_SHAPE}
+
+GENERATION RULES:
+- Turn the request into clear, professional line items with sensible names, quantities, and prices.
+- Use the seller, buyer, amounts, dates, and terms given in the request. If a detail is missing, omit
+  that field — do not invent contact info or payment links.
+- Default currency to "USD" unless the request implies otherwise.`;
+
+const INVOICE_EDIT_SYSTEM = `You EDIT an existing "Invoice Iguana" invoice. You are given the CURRENT INVOICE (raw JSON) and an EDIT REQUEST (a plain-language instruction).
+
+${INVOICE_SHAPE}
+
+EDIT RULES:
+- Apply ONLY the requested change. Preserve every other field and line item exactly — same order, names, and amounts.
+- Return the COMPLETE raw invoice object, never a diff or just the changed part.
+- Don't do arithmetic — for a percentage tax use "taxrate" (the app computes the amount). Leave other amounts as given unless the request changes them.
+- If the request is unclear or can't be applied, return the invoice unchanged.`;
+
+const INVOICE_EXAMPLE = {
+  seller: "Acme Consulting", sellercontact: "hello@acme.example", buyer: "Client Co",
+  invoicenumber: "INV-2026-001", issuedate: "2026-02-01", duedate: "2026-02-15", currency: "USD",
+  items: [
+    { name: "Discovery workshop", qty: 1, price: 800 },
+    { name: "Consulting", qty: 10, price: 150, unit: "hrs" }
+  ],
+  taxrate: 5, taxlabel: "Sales tax", notes: "Thanks for your business!"
+};
+
 export const APPS = {
   "website-wombat": {
     system: WOMBAT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(WOMBAT_EXAMPLE),
@@ -100,6 +168,18 @@ export const APPS = {
       var hasContent = Array.isArray(m.pages) ? m.pages.some(function (p) { return Array.isArray(p.sections) && p.sections.length; })
         : Array.isArray(m.sections) && m.sections.length;
       if (!hasContent) return "no sections";
+      return null; // ok
+    }
+  },
+
+  "invoiceiguana": {
+    system: INVOICE_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(INVOICE_EXAMPLE),
+    editSystem: INVOICE_EDIT_SYSTEM,
+    // Light plausibility check; the Invoice Iguana client re-parses/normalizes fully.
+    validate: function (m) {
+      if (!m || typeof m !== "object") return "not an object";
+      if (typeof m.seller !== "string" || !m.seller.trim()) return "missing seller";
+      if (!Array.isArray(m.items) || !m.items.length) return "no line items";
       return null; // ok
     }
   }
