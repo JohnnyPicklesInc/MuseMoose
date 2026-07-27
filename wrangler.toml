@@ -28,7 +28,7 @@ preview_id = "b9edda15fd694ddb9874f86346b9444d"
 # exact id against Cloudflare's Workers AI models catalog.
 MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
 # Comma-separated origins allowed to call the API (your apps). Add your prod domains.
-ALLOWED_ORIGINS = "http://localhost:8787,http://127.0.0.1:8787,https://websitewombat.app,https://websitewobat.pages.dev,https://invoiceiguana.com,https://www.invoiceiguana.com"
+ALLOWED_ORIGINS = "http://localhost:8787,http://127.0.0.1:8787,https://websitewombat.app,https://websitewobat.pages.dev,https://invoiceiguana.com,https://www.invoiceiguana.com,https://notenewt.com,https://www.notenewt.com"
 # Abuse / spend limits.
 RATE_PER_IP_HOUR = "20"
 # Per-app daily cap: each app (website-wombat, later invoiceiguana, …) gets its

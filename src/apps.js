@@ -241,6 +241,32 @@ const RECEIPT_EXAMPLE = {
   taxrate: 8, tip: 2, payment: "VISA •1234", footer: "Thanks for scurrying by!"
 };
 
+// Note Newt — a plain-text notes app (Markdown supported). Unlike the other
+// apps, a note is a single string, so the object is just { "text": "…" }.
+const NOTE_SYSTEM = `You write a note for "Note Newt", a plain-text notes app (Markdown supported).
+
+Output ONLY a single JSON object: { "text": string } — where "text" is the entire note.
+
+RULES:
+- "text" is plain text with optional Markdown: headings (#), lists (-), task lists ("- [ ] "), bold (**). No HTML.
+- The FIRST line is the note's title — a short, plain line.
+- Write exactly what's asked; be concise and useful. No preamble like "Here is your note", no commentary.
+- Output ONLY the JSON object — no prose, no markdown fences around it.`;
+
+const NOTE_EDIT_SYSTEM = `You transform an existing "Note Newt" note. You are given the CURRENT NOTE (a JSON object { "text": "…" }) and an INSTRUCTION.
+
+Output ONLY a single JSON object: { "text": string } — the whole transformed note.
+
+RULES:
+- Apply the instruction to the note (summarize, rewrite, reformat, make a checklist, fix grammar, expand, translate, etc.).
+- Return the COMPLETE new note text, never a diff or commentary.
+- Keep it plain text + Markdown; the first line is the title. No HTML, no fences.
+- If the instruction is unclear or can't be applied, return the note unchanged.`;
+
+const NOTE_EXAMPLE = {
+  text: "Beach trip packing list\n- [ ] Sunscreen\n- [ ] Towels\n- [ ] Swimsuits\n- [ ] Water bottles\n- [ ] Snacks\n- [ ] First-aid kit"
+};
+
 export const APPS = {
   "website-wombat": {
     system: WOMBAT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(WOMBAT_EXAMPLE),
@@ -290,6 +316,16 @@ export const APPS = {
       if (!m || typeof m !== "object") return "not an object";
       if (typeof m.merchant !== "string" || !m.merchant.trim()) return "missing merchant";
       if (!Array.isArray(m.items) || !m.items.length) return "no line items";
+      return null; // ok
+    }
+  },
+
+  "notenewt": {
+    system: NOTE_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(NOTE_EXAMPLE),
+    editSystem: NOTE_EDIT_SYSTEM,
+    validate: function (m) {
+      if (!m || typeof m !== "object") return "not an object";
+      if (typeof m.text !== "string" || !m.text.trim()) return "empty note";
       return null; // ok
     }
   }
