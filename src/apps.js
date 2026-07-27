@@ -153,6 +153,94 @@ const INVOICE_EXAMPLE = {
   taxrate: 5, taxlabel: "Sales tax", notes: "Thanks for your business!"
 };
 
+// Quote shares the invoice shape — it's just an estimate (no payment fields;
+// "duedate" is the "valid until" date). Reuses INVOICE_SHAPE.
+const QUOTE_SYSTEM = `You create a price quote (estimate) for "Invoice Iguana", a free browser quote generator.
+
+${INVOICE_SHAPE}
+
+QUOTE RULES:
+- This is a QUOTE / estimate, NOT an invoice: do not include "paymentinstructions" or "paymenturl".
+- "duedate" is the date the quote is valid until (e.g. ~30 days out) when the request implies one.
+- Turn the request into clear, professional line items with sensible names, quantities, and prices.
+- Use the seller, buyer, amounts, and terms given; omit anything not provided. Default currency to "USD".`;
+
+const QUOTE_EDIT_SYSTEM = `You EDIT an existing "Invoice Iguana" price quote. You are given the CURRENT QUOTE (raw JSON) and an EDIT REQUEST (a plain-language instruction).
+
+${INVOICE_SHAPE}
+
+EDIT RULES:
+- Apply ONLY the requested change; preserve every other field and line item exactly (same order, names, amounts).
+- Return the COMPLETE raw quote object, never a diff. Don't include payment fields, and don't do arithmetic — use "taxrate" for a percentage.
+- If the request is unclear or can't be applied, return the quote unchanged.`;
+
+const QUOTE_EXAMPLE = {
+  seller: "Northgate Builders", sellercontact: "quotes@northgate.example", buyer: "R. Alvarez",
+  invoicenumber: "Q-2026-014", issuedate: "2026-03-01", duedate: "2026-03-31", currency: "USD",
+  items: [
+    { name: "Kitchen remodel — labour", qty: 40, price: 75, unit: "hrs" },
+    { name: "Materials", qty: 1, price: 3200 }
+  ],
+  taxrate: 6, taxlabel: "Sales tax", notes: "Estimate valid for 30 days."
+};
+
+// Receipt is a DIFFERENT shape: merchant (no buyer), date/reference (no invoice #
+// or due date), a flat tip, footer instead of notes, and total includes the tip.
+const RECEIPT_SHAPE = `RAW RECEIPT SHAPE:
+{
+  "merchant": string,               // the business issuing the receipt (required)
+  "address"?: string,
+  "contact"?: string,               // phone and/or email
+  "date"?: string,                  // free text, e.g. "2026-07-05 14:30"
+  "reference"?: string,             // receipt or order number
+  "currency"?: string,              // 3-letter ISO code, default "USD"
+  "items": [                        // at least one line item (required)
+    { "name": string, "qty": number, "price": number, "discount"?: number, "discounttype"?: "percent"|"amount" }
+  ],
+  "discount"?: number,              // whole-receipt discount, a FIXED amount in the currency
+  "taxrate"?: number,               // tax as a PERCENTAGE, e.g. 8 for 8% — the app computes the amount
+  "tax"?: number,                   // flat tax AMOUNT, only when it isn't a percentage
+  "taxlabel"?: string,
+  "tip"?: number,                   // a flat tip AMOUNT (there is no tip percentage)
+  "payment"?: string,               // how it was paid, e.g. "VISA •1234", "Cash"
+  "footer"?: string                 // short thank-you line
+}
+
+FORMAT RULES (always):
+- Output ONLY a single JSON object (a raw receipt). No prose, no markdown fences, no comments.
+- "price", "discount", "tax", and "tip" are plain numbers in MAJOR currency units (3.5 = $3.50).
+- Do NOT include "subtotal" or "total", and do NOT do arithmetic — the app computes every dollar figure.
+- TAX: if it's a percentage, set "taxrate" (8% → "taxrate": 8) and DO NOT set "tax". Use "tax" only for a flat amount.
+- "tip" is a flat amount; include it only if the request mentions a tip.
+- Never invent a real business's contact, address, or payment details. Omit anything you don't know.`;
+
+const RECEIPT_SYSTEM = `You create a receipt for "Invoice Iguana", a free browser receipt maker. A receipt records a completed purchase.
+
+${RECEIPT_SHAPE}
+
+GENERATION RULES:
+- Turn the request into clear line items with sensible names, quantities, and prices.
+- Use the merchant, items, amounts, payment method, and date given. If a detail is missing, omit that field.
+- Default currency to "USD" unless the request implies otherwise.`;
+
+const RECEIPT_EDIT_SYSTEM = `You EDIT an existing "Invoice Iguana" receipt. You are given the CURRENT RECEIPT (raw JSON) and an EDIT REQUEST (a plain-language instruction).
+
+${RECEIPT_SHAPE}
+
+EDIT RULES:
+- Apply ONLY the requested change; preserve every other field and line item exactly (same order, names, amounts).
+- Return the COMPLETE raw receipt object, never a diff. Don't do arithmetic — use "taxrate" for a percentage; "tip" stays a flat amount.
+- If the request is unclear or can't be applied, return the receipt unchanged.`;
+
+const RECEIPT_EXAMPLE = {
+  merchant: "Rat's Deli", address: "123 Main St, Springfield", date: "2026-07-05 14:30", currency: "USD",
+  items: [
+    { name: "Coffee", qty: 2, price: 3.5 },
+    { name: "Bagel with cream cheese", qty: 1, price: 2.75 }
+  ],
+  taxrate: 8, tip: 2, payment: "VISA •1234", footer: "Thanks for scurrying by!"
+};
+
 export const APPS = {
   "website-wombat": {
     system: WOMBAT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(WOMBAT_EXAMPLE),
@@ -179,6 +267,28 @@ export const APPS = {
     validate: function (m) {
       if (!m || typeof m !== "object") return "not an object";
       if (typeof m.seller !== "string" || !m.seller.trim()) return "missing seller";
+      if (!Array.isArray(m.items) || !m.items.length) return "no line items";
+      return null; // ok
+    }
+  },
+
+  "invoiceiguana-quote": {
+    system: QUOTE_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(QUOTE_EXAMPLE),
+    editSystem: QUOTE_EDIT_SYSTEM,
+    validate: function (m) {
+      if (!m || typeof m !== "object") return "not an object";
+      if (typeof m.seller !== "string" || !m.seller.trim()) return "missing seller";
+      if (!Array.isArray(m.items) || !m.items.length) return "no line items";
+      return null; // ok
+    }
+  },
+
+  "invoiceiguana-receipt": {
+    system: RECEIPT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(RECEIPT_EXAMPLE),
+    editSystem: RECEIPT_EDIT_SYSTEM,
+    validate: function (m) {
+      if (!m || typeof m !== "object") return "not an object";
+      if (typeof m.merchant !== "string" || !m.merchant.trim()) return "missing merchant";
       if (!Array.isArray(m.items) || !m.items.length) return "no line items";
       return null; // ok
     }
