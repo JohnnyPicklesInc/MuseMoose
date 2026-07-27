@@ -29,9 +29,12 @@ preview_id = "b9edda15fd694ddb9874f86346b9444d"
 MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct"
 # Comma-separated origins allowed to call the API (your apps). Add your prod domains.
 ALLOWED_ORIGINS = "http://localhost:8787,http://127.0.0.1:8787,https://websitewombat.app,https://websitewobat.pages.dev"
-# Abuse limits.
+# Abuse / spend limits.
 RATE_PER_IP_HOUR = "20"
-RATE_GLOBAL_DAY = "500"
+# Per-app daily cap: each app (website-wombat, later invoiceiguana, …) gets its
+# OWN 1000/day budget, so a spike on one can't starve the others. This is the
+# hard ceiling on each app's worst-case daily model spend.
+RATE_PER_APP_DAY = "1000"
 MAX_PROMPT_CHARS = "2000"
 MAX_OUTPUT_TOKENS = "2048"
 # Edit mode (request carries the current manifest + an instruction): a size cap

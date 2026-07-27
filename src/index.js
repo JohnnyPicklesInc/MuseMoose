@@ -5,7 +5,7 @@
 //
 // Order of gates (cheapest first — inference only runs if everything passes):
 //   CORS/origin -> method/body -> Turnstile(optional) -> per-IP rate limit ->
-//   global daily cap -> cache -> Workers AI -> validate -> cache put.
+//   per-app daily cap -> cache -> Workers AI -> validate -> cache put.
 //
 // Isolation: this Worker only has the `AI` and `RL` bindings from wrangler.toml.
 // It cannot reach any other app's data and holds no account API token.
@@ -54,14 +54,16 @@ export default {
       if (!ok) return json({ error: "verification failed" }, 403, cors);
     }
 
-    // ---- rate limits: per-IP/hour AND a hard global/day cap ----
+    // ---- rate limits: per-IP/hour AND a per-app/day cap ----
     const ip = request.headers.get("CF-Connecting-IP") || "unknown";
     const hour = Math.floor(Date.now() / 3.6e6);
     const day = Math.floor(Date.now() / 8.64e7);
     const perIp = await bump(env.RL, "ip:" + ip + ":" + hour, 3600);
     if (perIp > int(env.RATE_PER_IP_HOUR, 20)) return json({ error: "rate limited — try again later" }, 429, cors);
-    const global = await bump(env.RL, "global:" + day, 86400);
-    if (global > int(env.RATE_GLOBAL_DAY, 500)) return json({ error: "daily limit reached — back tomorrow" }, 429, cors);
+    // Each app gets its OWN daily budget (key includes body.app), so a spike on
+    // one app can't exhaust another's — and each app's worst-case spend is bounded.
+    const appDay = await bump(env.RL, "app:" + body.app + ":" + day, 86400);
+    if (appDay > int(env.RATE_PER_APP_DAY, 1000)) return json({ error: "daily limit reached — back tomorrow" }, 429, cors);
 
     // ---- cache: identical requests served for free. Edit results are keyed by
     // (manifest + instruction) so they never collide with generation results. ----

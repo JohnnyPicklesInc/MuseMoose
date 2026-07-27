@@ -14,7 +14,7 @@ Gates run cheapest-first, so the **open model only runs if everything passes**:
 
 1. **CORS / origin allowlist** — only your app domains (`ALLOWED_ORIGINS`).
 2. **Turnstile** (optional) — proof-of-human, enforced only if `TURNSTILE_SECRET` is set.
-3. **Per-IP rate limit** + a **hard global daily cap** — the global cap bounds worst-case spend.
+3. **Per-IP rate limit** + a **hard per-app daily cap** — each app has its own daily budget, so one app can't starve another and each app's worst-case spend is bounded.
 4. **Cache** — identical `(app, prompt)` requests are served for free.
 5. **Workers AI** (open-weight model) with the app's system prompt + schema.
 6. **Validation** — a plausible object back, or a clean error (the client re-normalizes fully).
@@ -52,7 +52,7 @@ Then point each app at the deployed URL and add its origin to `ALLOWED_ORIGINS`.
 |---|---|
 | `MODEL` | Workers AI model id. Default `@cf/qwen/qwen2.5-coder-32b-instruct` (strong at structured JSON). Alternatives: `@cf/meta/llama-3.3-70b-instruct-fp8-fast` (all-round) or `@cf/meta/llama-3.1-8b-instruct` (cheapest). |
 | `ALLOWED_ORIGINS` | comma-separated origins allowed to call the API |
-| `RATE_PER_IP_HOUR` / `RATE_GLOBAL_DAY` | abuse limits (global cap = worst-case spend bound) |
+| `RATE_PER_IP_HOUR` / `RATE_PER_APP_DAY` | abuse limits. `RATE_PER_APP_DAY` is **per app** (keyed by `app`), so each front-end has its own daily budget and worst-case spend bound |
 | `MAX_PROMPT_CHARS` / `MAX_OUTPUT_TOKENS` | per-request size caps |
 
 ## Adding another app
