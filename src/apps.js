@@ -267,6 +267,59 @@ const NOTE_EXAMPLE = {
   text: "Beach trip packing list\n- [ ] Sunscreen\n- [ ] Towels\n- [ ] Swimsuits\n- [ ] Water bottles\n- [ ] Snacks\n- [ ] First-aid kit"
 };
 
+// Bill of sale — a record of a completed private sale between a seller and a
+// buyer (car, boat, firearm, or general goods). Its own shape (two parties + the
+// sold item + price + as-is terms). NOT legal advice; the client shows a disclaimer.
+const BILLOFSALE_SHAPE = `RAW BILL-OF-SALE SHAPE:
+{
+  "itemtype": "vehicle"|"boat"|"firearm"|"general",   // best guess from the request
+  "seller": string,                 // seller's full name (required)
+  "selleraddress"?: string,
+  "buyer": string,                  // buyer's full name (required)
+  "buyeraddress"?: string,
+  "item": string,                   // what is being sold (required). For a VEHICLE include
+                                    // year, make, model, VIN, colour and odometer if given.
+  "price": number,                  // total sale price in the currency (required)
+  "currency"?: string,              // 3-letter ISO code, default "USD"
+  "saledate"?: string,              // "YYYY-MM-DD"
+  "payment"?: string,               // how it was paid, e.g. "Paid in full, cash"
+  "terms"?: string                  // sale terms, e.g. "Sold as-is, where-is, with no warranty."
+}
+
+FORMAT RULES (always):
+- Output ONLY a single JSON object (a raw bill of sale). No prose, no markdown fences, no comments.
+- "price" is a plain number in major currency units (5000 = $5,000.00). Don't do arithmetic.
+- For a vehicle, put the year/make/model plus VIN, colour, and odometer INTO the "item" string.
+- Default "terms" to "Sold as-is, where-is, with no warranty, express or implied." unless the request says otherwise.
+- NEVER invent a VIN, plate, licence number, or personal detail — if it isn't given, write a placeholder like "[VIN]" or omit it.`;
+
+const BILLOFSALE_SYSTEM = `You create a bill of sale for "Invoice Iguana" — a record of a completed private sale between two people.
+
+${BILLOFSALE_SHAPE}
+
+GENERATION RULES:
+- Use the seller, buyer, item, price, date, and payment given in the request. If a detail is missing, omit it or use a clear placeholder.
+- Keep the item description specific and factual. Default currency to "USD".`;
+
+const BILLOFSALE_EDIT_SYSTEM = `You EDIT an existing "Invoice Iguana" bill of sale. You are given the CURRENT BILL OF SALE (raw JSON) and an EDIT REQUEST (a plain-language instruction).
+
+${BILLOFSALE_SHAPE}
+
+EDIT RULES:
+- Apply ONLY the requested change; preserve every other field exactly (same names, item details, amounts).
+- Return the COMPLETE raw bill-of-sale object, never a diff. Don't do arithmetic.
+- If the request is unclear or can't be applied, return the bill of sale unchanged.`;
+
+const BILLOFSALE_EXAMPLE = {
+  itemtype: "vehicle",
+  seller: "Jordan Miller", selleraddress: "12 Oak St, Austin, TX",
+  buyer: "Priya Shah", buyeraddress: "440 Elm Ave, Austin, TX",
+  item: "2018 Honda Civic LX, VIN 2HGFC2F5XJH000000, blue, 62,140 miles",
+  price: 15500, currency: "USD", saledate: "2026-07-28",
+  payment: "Paid in full, cashier's check",
+  terms: "Sold as-is, where-is, with no warranty, express or implied."
+};
+
 export const APPS = {
   "website-wombat": {
     system: WOMBAT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(WOMBAT_EXAMPLE),
@@ -326,6 +379,18 @@ export const APPS = {
     validate: function (m) {
       if (!m || typeof m !== "object") return "not an object";
       if (typeof m.text !== "string" || !m.text.trim()) return "empty note";
+      return null; // ok
+    }
+  },
+
+  "invoiceiguana-billofsale": {
+    system: BILLOFSALE_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(BILLOFSALE_EXAMPLE),
+    editSystem: BILLOFSALE_EDIT_SYSTEM,
+    validate: function (m) {
+      if (!m || typeof m !== "object") return "not an object";
+      if (typeof m.seller !== "string" || !m.seller.trim()) return "missing seller";
+      if (typeof m.buyer !== "string" || !m.buyer.trim()) return "missing buyer";
+      if (typeof m.item !== "string" || !m.item.trim()) return "missing item";
       return null; // ok
     }
   }
