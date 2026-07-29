@@ -320,6 +320,57 @@ const BILLOFSALE_EXAMPLE = {
   terms: "Sold as-is, where-is, with no warranty, express or implied."
 };
 
+// LetterLynx — a browser letter writer (cover, resignation, complaint,
+// recommendation, etc.). A letter is lightly structured so it renders on clean
+// letterhead and prints well; the "body" carries the actual prose (the part that
+// most resembles Note Newt's { text } model). General correspondence, not legal
+// advice — the client shows a light note for legal-adjacent letters.
+const LETTER_SHAPE = `RAW LETTER SHAPE:
+{
+  "sender": string,       // the writer's name + return address, multi-line (\\n) ok; "" if unknown
+  "recipient": string,    // recipient name + address, multi-line (\\n) ok; "" if unknown
+  "date": string,         // e.g. "July 28, 2026" — omit/"" and the client fills today
+  "salutation": string,   // e.g. "Dear Ms. Rivera," or "Dear Hiring Manager,"
+  "body": string,         // THE LETTER. Paragraphs separated by a blank line. Plain prose, no markdown, no HTML.
+  "closing": string,      // e.g. "Sincerely," — a valediction
+  "signature": string     // the writer's typed name under the closing
+}`;
+
+const LETTER_SYSTEM = `You write a letter for "LetterLynx", a free browser letter writer.
+
+Output ONLY a single JSON object matching the shape below — no prose, no markdown fences.
+
+${LETTER_SHAPE}
+
+RULES:
+- Write a complete, ready-to-send letter in a natural, appropriate tone (professional by default; warmer for personal letters).
+- "body" is the substance: real paragraphs separated by a blank line. No bullet lists unless clearly warranted. No markdown, no HTML.
+- Use only details the request gives. Where a specific fact is needed but missing (name, company, date, address), use a clear neutral placeholder in [SQUARE BRACKETS] — never invent real names, addresses, account numbers, or amounts.
+- Pick a fitting salutation and closing. If the recipient is unknown, "Dear Hiring Manager," / "To Whom It May Concern," are fine.
+- Keep it concise and purposeful — one page. No preamble like "Here is your letter".
+- This is general correspondence, not legal advice; do not claim to be a lawyer or cite statutes.`;
+
+const LETTER_EDIT_SYSTEM = `You EDIT an existing "LetterLynx" letter. You are given the CURRENT LETTER (raw JSON) and an EDIT REQUEST (a plain-language instruction).
+
+${LETTER_SHAPE}
+
+RULES:
+- Apply the instruction (change tone, shorten, expand, fix grammar, translate, make it firmer/warmer, re-address it, etc.).
+- Return the COMPLETE new letter object, never a diff or commentary.
+- Preserve fields the instruction doesn't touch. Keep [SQUARE BRACKET] placeholders unless given the real value.
+- Plain prose in "body", paragraphs separated by a blank line. No markdown, no HTML.
+- If the instruction is unclear or can't be applied, return the letter unchanged.`;
+
+const LETTER_EXAMPLE = {
+  sender: "Alex Doe\n42 Maple Street\nPortland, OR 97201",
+  recipient: "Hiring Manager\nBlue Bottle Coffee\n1 Market Street\nSan Francisco, CA 94105",
+  date: "July 28, 2026",
+  salutation: "Dear Hiring Manager,",
+  body: "I am writing to apply for the Barista position at Blue Bottle Coffee. With two years of café experience and a genuine love of specialty coffee, I would bring both speed behind the bar and warmth at the counter.\n\nIn my current role I handle high-volume morning rushes, train new staff on espresso dialing, and consistently earn strong customer-service feedback. I am drawn to Blue Bottle's care for sourcing and craft, and I would be glad to grow with a team that takes coffee seriously.\n\nThank you for your time and consideration. I would welcome the chance to discuss how I can contribute to your team.",
+  closing: "Sincerely,",
+  signature: "Alex Doe"
+};
+
 export const APPS = {
   "website-wombat": {
     system: WOMBAT_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(WOMBAT_EXAMPLE),
@@ -391,6 +442,16 @@ export const APPS = {
       if (typeof m.seller !== "string" || !m.seller.trim()) return "missing seller";
       if (typeof m.buyer !== "string" || !m.buyer.trim()) return "missing buyer";
       if (typeof m.item !== "string" || !m.item.trim()) return "missing item";
+      return null; // ok
+    }
+  },
+
+  "letterlynx": {
+    system: LETTER_SYSTEM + "\n\nEXAMPLE (structure to mirror, not copy):\n" + JSON.stringify(LETTER_EXAMPLE),
+    editSystem: LETTER_EDIT_SYSTEM,
+    validate: function (m) {
+      if (!m || typeof m !== "object") return "not an object";
+      if (typeof m.body !== "string" || !m.body.trim()) return "empty letter body";
       return null; // ok
     }
   }
